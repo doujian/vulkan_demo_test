@@ -1,0 +1,9 @@
+创建一个工程用于测试vulkan，要求如下：
+1、生成一套vulkan框架工程，可变方便增加新增的vulkan用例。对常用的功能做封装，后续新增用例适配工作量最小化。
+2、使用GLFW。
+2、支持windows、android命令行、windows gui、android apk、openharmony命令行、openharmony hap、linux命令行执行。
+3、支持windows、linux环境编译。linux环境不编译支持windows命令行、gui执行的版本；windows环境编译不支持linux命令行执行的版本。
+4、命令行执行可以通过参数决定是否开启validation layer、 提交次数，采用离线渲染，并提供dump渲染结果的能力。开启validation layer后，如果校验出问题不中断执行。
+5、apk/hap执行提交送显。
+6、生成一些常用的工具方法，比如把vulkan的image buffer转成png
+7、生成一个skill，提供vulkan demo的描述后，直接基于这个工程生成代码。
