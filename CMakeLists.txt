@@ -12,13 +12,11 @@ set(VULKAN_SDK "E:/VulkanSDK/1.4.341.1")
 set(Vulkan_INCLUDE_DIRS "${VULKAN_SDK}/Include")
 set(Vulkan_LIBRARY "${VULKAN_SDK}/Lib/vulkan-1.lib")
 
-include(FetchContent)
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG        3.3.8
-)
-FetchContent_MakeAvailable(glfw)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/glfw_src)
 
 find_package(Vulkan REQUIRED)
 
