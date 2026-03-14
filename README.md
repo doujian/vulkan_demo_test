@@ -47,18 +47,18 @@ vulkan_demo_test/
 
 ## 编译
 
-### 环境要求
+### Windows 环境
 
 - CMake 3.16+
 - C++17 编译器
 - Vulkan SDK 1.2+
 - GLFW (自动下载)
 
-### 编译步骤
+### 编译步骤 (Windows)
 
 ```bash
 # 配置
-cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake -B build -G "Visual Studio 18 2026" -A x64
 
 # 编译
 cmake --build build --config Release
@@ -71,6 +71,68 @@ cmake --build build --config Release
 默认路径：`E:/VulkanSDK/1.4.341.1`
 
 修改 `CMakeLists.txt` 中的 `VULKAN_SDK` 变量以更改路径。
+
+## Android 编译
+
+### 环境要求
+
+- Android NDK r25+
+- CMake 3.22+
+- Ninja 构建工具
+- Android SDK (APK 版本需要)
+- Gradle 8.0+ (APK 版本需要)
+
+### Android CLI 版本 (离屏渲染测试)
+
+适用于 Android 12+ 设备的命令行版本，支持离屏渲染和测试：
+
+```bash
+# 设置 NDK 路径
+set ANDROID_NDK_HOME=path/to/android-ndk
+
+# 构建
+cd android
+build_cli.bat
+```
+
+编译完成后，可执行文件位于：`android/build_cli/vulkan_demo`
+
+### 部署和运行 (CLI 版本)
+
+```bash
+# 推送到设备
+adb push android/build_cli/vulkan_demo /data/local/tmp/
+adb push shaders /data/local/tmp/
+adb push golden /data/local/tmp/
+adb shell chmod +x /data/local/tmp/vulkan_demo
+
+# 运行测试
+adb shell /data/local/tmp/vulkan_demo --run-all-tests
+
+# 运行单个 demo
+adb shell /data/local/tmp/vulkan_demo -d triangle --offscreen -n 10 -o /sdcard/vulkan_output
+```
+
+### Android APK 版本
+
+适用于在手机上实时显示渲染结果：
+
+```bash
+cd android
+build_apk.bat
+```
+
+编译完成后，APK 位于：`android/apk/app/build/outputs/apk/release/app-release.apk`
+
+### 安装和运行 (APK 版本)
+
+```bash
+# 安装 APK
+adb install android/apk/app/build/outputs/apk/release/app-release.apk
+
+# 启动应用
+adb shell am start -n com.vulkandemo/.MainActivity
+```
 
 ## 使用方法
 

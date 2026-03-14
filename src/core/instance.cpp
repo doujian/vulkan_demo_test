@@ -2,7 +2,14 @@
 #include "utils/validation_logger.h"
 #include <iostream>
 #include <cstring>
+
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#include <android/log.h>
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "VulkanDemo", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "VulkanDemo", __VA_ARGS__)
+#else
 #include <GLFW/glfw3.h>
+#endif
 
 namespace vk_core {
 
@@ -157,12 +164,16 @@ bool Instance::checkValidationLayerSupport(const std::vector<const char*>& layer
 std::vector<const char*> Instance::getRequiredExtensions() const {
     std::vector<const char*> extensions;
     
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+    extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+#else
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     
     for (uint32_t i = 0; i < glfwExtensionCount; i++) {
         extensions.push_back(glfwExtensions[i]);
     }
+#endif
 
     if (m_validationEnabled) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

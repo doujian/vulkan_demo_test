@@ -43,6 +43,90 @@ cd D:/Projects/vulkan_demo_test/build
 如果不在上面路径，找到后修改。
 ```
 
+## Android SDK/NDK
+
+```
+Android SDK: E:/Android/Sdk
+Android NDK: E:/Android/Sdk/ndk/29.0.14206865
+Ninja: E:/Android/Sdk/cmake/4.1.2/bin/ninja.exe
+Android Studio: D:/Program Files/Android/Android Studio
+Gradle: 项目自带 (gradle_init/gradle-8.5)
+JDK 17: 项目自带 (jdk/jdk-17.0.2) - APK 构建必须用 JDK 17
+```
+
+## Android 编译命令
+
+```bash
+# Android CLI 版本编译
+cmake -B "android/build_cli" -S "android" -G "Ninja" \
+  -DCMAKE_TOOLCHAIN_FILE="E:/Android/Sdk/ndk/29.0.14206865/build/cmake/android.toolchain.cmake" \
+  -DCMAKE_MAKE_PROGRAM="E:/Android/Sdk/cmake/4.1.2/bin/ninja.exe" \
+  -DANDROID_ABI=arm64-v8a \
+  -DANDROID_PLATFORM=android-26 \
+  -DANDROID_STL=c++_static \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_VALIDATION=OFF \
+  -DBUILD_ANDROID_CLI=ON \
+  -DBUILD_ANDROID_APP=OFF
+
+cmake --build "android/build_cli" --config Release
+
+# Android APK 版本编译 (需要 JDK 17)
+# 1. 先编译 native 库
+cmake -B "android/build_apk" -S "android" -G "Ninja" \
+  -DCMAKE_TOOLCHAIN_FILE="E:/Android/Sdk/ndk/29.0.14206865/build/cmake/android.toolchain.cmake" \
+  -DCMAKE_MAKE_PROGRAM="E:/Android/Sdk/cmake/4.1.2/bin/ninja.exe" \
+  -DANDROID_ABI=arm64-v8a \
+  -DANDROID_PLATFORM=android-26 \
+  -DANDROID_STL=c++_static \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_VALIDATION=OFF \
+  -DBUILD_ANDROID_CLI=OFF \
+  -DBUILD_ANDROID_APP=ON
+
+cmake --build "android/build_apk" --config Release
+
+# 2. 复制 .so 到 jniLibs
+mkdir -p android/apk/app/src/main/jniLibs/arm64-v8a
+cp android/build_apk/libvulkan_demo.so android/apk/app/src/main/jniLibs/arm64-v8a/
+
+# 3. 复制资源
+cp -r shaders android/apk/app/src/main/assets/
+cp -r golden android/apk/app/src/main/assets/
+
+# 4. 用 Gradle 构建 APK (必须用 JDK 17)
+export JAVA_HOME="D:/Projects/temp/vulkan_demo_test/jdk/jdk-17.0.2"
+cd android/apk
+../../gradle_init/gradle-8.5/bin/gradle assembleRelease
+
+# 5. 签名 APK
+E:/Android/Sdk/build-tools/36.1.0/zipalign.exe -v 4 \
+  app/build/outputs/apk/release/app-release-unsigned.apk app-aligned.apk
+E:/Android/Sdk/build-tools/36.1.0/apksigner.bat sign \
+  --ks release-key.jks --ks-pass pass:android --key-pass pass:android \
+  --out app-release.apk app-aligned.apk
+```
+
+输出:
+- CLI: android/build_cli/vulkan_demo
+- APK: android/apk/app-release.apk
+
+## Android 部署命令
+
+```bash
+# 推送 CLI 版本到设备
+adb push android/build_cli/vulkan_demo /data/local/tmp/
+adb push shaders /data/local/tmp/
+adb push golden /data/local/tmp/
+adb shell chmod +x /data/local/tmp/vulkan_demo
+
+# 运行 Android CLI 测试
+adb shell /data/local/tmp/vulkan_demo --run-all-tests
+
+# 安装 APK
+adb install android/apk/app/build/outputs/apk/release/app-release.apk
+```
+
 ## 代码风格
 
 - 不添加注释（除非用户要求）

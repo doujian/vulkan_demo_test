@@ -2,6 +2,27 @@
 build/
 cmake-build-*/
 out/
+output/
+
+# Android build outputs
+android/build_cli/
+android/build_apk/
+android/apk/.gradle/
+android/apk/app/build/
+android/apk/.cxx/
+android/apk/*.idsig
+
+# Gradle wrapper (use system gradle)
+android/apk/gradle/
+android/apk/gradlew
+android/apk/gradlew.bat
+
+# Local config
+android/apk/local.properties
+
+# Temp tools (downloaded during build)
+gradle_init/
+jdk/
 
 # Third party - keep sources, ignore git dirs and temp files
 third_party/*/.git/
