@@ -22,12 +22,10 @@ android/apk/gradlew.bat
 # Local config
 android/apk/local.properties
 
-# Temp tools (downloaded during build)
-gradle/
-jdk/
-
-# Downloaded APK build tools
-gradle_init/
+# Temp tools - keep these for reproducible builds
+# gradle/
+# jdk/
+# gradle_init/
 
 # Third party - keep sources, ignore git dirs and temp files
 third_party/*/.git/
