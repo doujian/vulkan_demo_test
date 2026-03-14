@@ -6,11 +6,15 @@ Run this before building the project.
 
 import os
 import sys
-import urllib.request
 import zipfile
 import shutil
+import time
+import urllib.request
 
 THIRD_PARTY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "third_party")
+MAX_RETRIES = 3
+RETRY_DELAY = 2
+CHUNK_SIZE = 1024 * 1024
 
 DEPENDENCIES = {
     "glm": {
@@ -33,49 +37,79 @@ DEPENDENCIES = {
 }
 
 
+def format_size(size):
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{size:.1f}TB"
+
+
+def download_with_progress(url, dest_path):
+    for attempt in range(MAX_RETRIES):
+        try:
+            print(f"  Downloading {url}... (attempt {attempt + 1}/{MAX_RETRIES})")
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            
+            request = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            response = urllib.request.urlopen(request, timeout=60)
+            total_size = int(response.headers.get('content-length', 0))
+            
+            downloaded = 0
+            start_time = time.time()
+            
+            with open(dest_path, 'wb') as f:
+                while True:
+                    chunk = response.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        percent = downloaded * 100 / total_size
+                        speed = downloaded / (time.time() - start_time + 0.001)
+                        print(f"\r  Progress: {percent:.1f}% ({format_size(downloaded)}/{format_size(total_size)}) {format_size(speed)}/s", end='', flush=True)
+            
+            print()
+            return
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                print(f"\n  Failed: {e}, retrying in {RETRY_DELAY}s...")
+                time.sleep(RETRY_DELAY)
+            else:
+                raise
+
+
 def download_file(url, dest_path):
-    print(f"  Downloading {url}...")
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-    urllib.request.urlretrieve(url, dest_path)
+    download_with_progress(url, dest_path)
 
 
 def download_zip(url, dest_dir, strip_components=0):
-    print(f"  Downloading {url}...")
+    os.makedirs(dest_dir, exist_ok=True)
     temp_path = os.path.join(dest_dir, "temp.zip")
-    urllib.request.urlretrieve(url, temp_path)
+    
+    download_with_progress(url, temp_path)
     
     with zipfile.ZipFile(temp_path, 'r') as zip_ref:
-        if strip_components > 0:
+        if strip_components == 0:
+            zip_ref.extractall(dest_dir)
+        else:
             for member in zip_ref.namelist():
                 parts = member.split('/')
-                if len(parts) > strip_components:
-                    new_path = '/'.join(parts[strip_components:])
-                    if new_path:
-                        target = os.path.join(dest_dir, new_path)
-                        if member.endswith('/'):
-                            os.makedirs(target, exist_ok=True)
-                        else:
-                            os.makedirs(os.path.dirname(target), exist_ok=True)
-                            with zip_ref.open(member) as source:
-                                with open(target, 'wb') as f:
-                                    f.write(source.read())
-        else:
-            zip_ref.extractall(dest_dir)
+                if len(parts) <= strip_components:
+                    continue
+                new_path = '/'.join(parts[strip_components:])
+                if not new_path:
+                    continue
+                target = os.path.join(dest_dir, new_path)
+                if member.endswith('/'):
+                    os.makedirs(target, exist_ok=True)
+                else:
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    with zip_ref.open(member) as source, open(target, 'wb') as f:
+                        f.write(source.read())
     
-    try:
-        os.remove(temp_path)
-    except PermissionError:
-        pass
-
-
-def clone_repo(repo_url, dest_dir, branch=None):
-    import subprocess
-    print(f"  Cloning {repo_url}...")
-    cmd = ["git", "clone", "--depth", "1"]
-    if branch:
-        cmd.extend(["-b", branch])
-    cmd.extend([repo_url, dest_dir])
-    subprocess.run(cmd, check=True)
+    os.remove(temp_path)
 
 
 def setup_glm():
@@ -127,7 +161,7 @@ def setup_stb():
 
 def setup_ktx():
     dest_dir = os.path.join(THIRD_PARTY_DIR, "ktx")
-    if os.path.exists(os.path.join(dest_dir, ".git")):
+    if os.path.exists(os.path.join(dest_dir, "lib")):
         print("ktx already exists, skipping...")
         return
     
@@ -136,7 +170,8 @@ def setup_ktx():
         shutil.rmtree(dest_dir, ignore_errors=True)
     
     print("Setting up ktx...")
-    clone_repo("https://github.com/KhronosGroup/KTX-Software", dest_dir, branch="v4.4.2")
+    url = "https://github.com/KhronosGroup/KTX-Software/archive/refs/tags/v4.4.2.zip"
+    download_zip(url, dest_dir, strip_components=1)
     print("  Done.")
 
 

@@ -4,7 +4,7 @@
 
 ## 检查依赖
 ```
-如果setup_deps.py的依赖没有满足，不要尝试编译项目
+每次编译前，都检查依赖全不全。如果不全只允许调用setup_deps.py下载依赖，依赖没有满足前，不要尝试编译项目
 ```
 
 ## 单元测试
@@ -48,6 +48,7 @@ cd D:/Projects/vulkan_demo_test/build
 - 不添加注释（除非用户要求）
 - 使用 4 空格缩进
 - 命名空间: vk_demo, vk_core, vk_test, vk_utils, vk_offscreen
+- 可能有错的异常分支都加上打印，用完不要删保留着。
 
 ## 测试命令
 
@@ -66,10 +67,5 @@ vulkan_demo.exe -d triangle --offscreen --test
 
 ## 修复错误
 ```
-1、跑一下validation layer
-```
-
-## 代码书写
-```
-可能有错的异常分支都加上打印，用完不要删保留着。
+跑一下validation layer
 ```

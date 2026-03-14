@@ -3,6 +3,13 @@ build/
 cmake-build-*/
 out/
 
+# Third party - keep sources, ignore git dirs and temp files
+third_party/*/.git/
+third_party/*/.github/
+third_party/*/build/
+third_party/*/*.zip
+third_party/*/temp.zip
+
 # Visual Studio
 .vs/
 *.vcxproj
