@@ -3,6 +3,7 @@
 #include "core/image.h"
 #include "utils/png_writer.h"
 #include "utils/validation_logger.h"
+#include "utils/file_utils.h"
 #include "test/test_runner.h"
 
 #define GLFW_INCLUDE_VULKAN
@@ -31,7 +32,7 @@ int App::run(int argc, char* argv[]) {
     m_validationEnabled = args.validation;
     m_testMode = args.testMode;
     m_updateGolden = args.updateGolden;
-    m_goldenPath = args.goldenPath;
+    m_goldenPath = vk_utils::resolveResourcePath(args.goldenPath);
     m_testThreshold = args.testThreshold;
     
     if (args.listDemos) {

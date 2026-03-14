@@ -1,10 +1,12 @@
 #include "shader.h"
+#include "utils/file_utils.h"
 #include <fstream>
 
 namespace vk_core {
 
 std::vector<char> Shader::readFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    std::string resolvedPath = vk_utils::resolveResourcePath(filename);
+    std::ifstream file(resolvedPath, std::ios::ate | std::ios::binary);
     if (!file.is_open()) {
         return {};
     }

@@ -11,6 +11,8 @@ android/apk/.gradle/
 android/apk/app/build/
 android/apk/.cxx/
 android/apk/*.idsig
+android/apk/*.apk
+android/apk/app-aligned.apk
 
 # Gradle wrapper (use system gradle)
 android/apk/gradle/
@@ -21,8 +23,11 @@ android/apk/gradlew.bat
 android/apk/local.properties
 
 # Temp tools (downloaded during build)
-gradle_init/
+gradle/
 jdk/
+
+# Downloaded APK build tools
+gradle_init/
 
 # Third party - keep sources, ignore git dirs and temp files
 third_party/*/.git/

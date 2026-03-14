@@ -133,9 +133,6 @@ set_target_properties(vulkan_demo PROPERTIES
 
 add_custom_command(TARGET vulkan_demo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets
-        $<TARGET_FILE_DIR:vulkan_demo>/assets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:vulkan_demo>/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory

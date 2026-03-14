@@ -50,7 +50,7 @@ Android SDK: E:/Android/Sdk
 Android NDK: E:/Android/Sdk/ndk/29.0.14206865
 Ninja: E:/Android/Sdk/cmake/4.1.2/bin/ninja.exe
 Android Studio: D:/Program Files/Android/Android Studio
-Gradle: 项目自带 (gradle_init/gradle-8.5)
+Gradle: 项目自带 (gradle/gradle-8.5)
 JDK 17: 项目自带 (jdk/jdk-17.0.2) - APK 构建必须用 JDK 17
 ```
 
@@ -95,14 +95,14 @@ cp -r shaders android/apk/app/src/main/assets/
 cp -r golden android/apk/app/src/main/assets/
 
 # 4. 用 Gradle 构建 APK (必须用 JDK 17)
-export JAVA_HOME="D:/Projects/temp/vulkan_demo_test/jdk/jdk-17.0.2"
+export JAVA_HOME="D:/Projects/temp/temp2/vulkan_demo_test/jdk/jdk-17.0.2"
 cd android/apk
-../../gradle_init/gradle-8.5/bin/gradle assembleRelease
+../../gradle/gradle-8.5/bin/gradle assembleRelease
 
 # 5. 签名 APK
-E:/Android/Sdk/build-tools/36.1.0/zipalign.exe -v 4 \
+JAVA_HOME="../../jdk/jdk-17.0.2" E:/Android/Sdk/build-tools/36.1.0/zipalign.exe -v 4 \
   app/build/outputs/apk/release/app-release-unsigned.apk app-aligned.apk
-E:/Android/Sdk/build-tools/36.1.0/apksigner.bat sign \
+JAVA_HOME="../../jdk/jdk-17.0.2" E:/Android/Sdk/build-tools/36.1.0/apksigner.bat sign \
   --ks release-key.jks --ks-pass pass:android --key-pass pass:android \
   --out app-release.apk app-aligned.apk
 ```
@@ -124,7 +124,7 @@ adb shell chmod +x /data/local/tmp/vulkan_demo
 adb shell /data/local/tmp/vulkan_demo --run-all-tests
 
 # 安装 APK
-adb install android/apk/app/build/outputs/apk/release/app-release.apk
+adb install android/apk/app-release.apk
 ```
 
 ## 代码风格
