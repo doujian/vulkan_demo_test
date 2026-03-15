@@ -59,6 +59,7 @@ private:
     bool renderOffscreenFrame(DemoBase* demo, const std::string& outputDir, uint32_t frameCount,
                               vk_test::TestRunner& testRunner, uint32_t& passCount, uint32_t& failCount);
     void printTestSummary(uint32_t passCount, uint32_t failCount, uint32_t frameCount, bool isTestMode);
+    void makeDirectory(const std::string& path);
     
 private:
     GLFWwindow* m_window = nullptr;

@@ -6,19 +6,36 @@
 #include "utils/file_utils.h"
 #include "test/test_runner.h"
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "VulkanDemo", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "VulkanDemo", __VA_ARGS__)
+#else
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-
 #include <iostream>
+#include <cstdio>
+#define LOGI(...) do { printf(__VA_ARGS__); printf("\n"); fflush(stdout); } while(0)
+#define LOGE(...) do { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while(0)
+#ifdef _WIN32
+#include <direct.h>
+#endif
+#endif
+
 #include <iomanip>
 #include <sstream>
 #include <ctime>
 
-#ifdef _WIN32
-#include <direct.h>
-#endif
-
 namespace vk_demo {
+
+namespace {
+#ifdef __ANDROID__
+    std::string g_outputPath;
+    std::string g_goldenPath;
+#endif
+}
 
 App::~App() {
     cleanup();
@@ -32,14 +49,29 @@ int App::run(int argc, char* argv[]) {
     m_validationEnabled = args.validation;
     m_testMode = args.testMode;
     m_updateGolden = args.updateGolden;
-    m_goldenPath = vk_utils::resolveResourcePath(args.goldenPath);
     m_testThreshold = args.testThreshold;
     
+#ifdef __ANDROID__
+    if (args.outputPath.empty()) {
+        args.outputPath = "/sdcard/vulkan_demo_output";
+    }
+    if (args.goldenPath.empty()) {
+        args.goldenPath = "/data/local/tmp/golden";
+    }
+    g_outputPath = args.outputPath;
+    g_goldenPath = args.goldenPath;
+    args.offscreen = true;
+#else
+    m_goldenPath = vk_utils::resolveResourcePath(args.goldenPath);
+#endif
+    
+    makeDirectory(args.outputPath);
+    makeDirectory(args.goldenPath);
+    
     if (args.listDemos) {
-        std::cout << "Available demos:\n";
+        LOGI("Available demos:");
         for (const auto& name : DemoRegistry::instance().getDemoNames()) {
-            std::cout << "  " << name << ": " 
-                      << DemoRegistry::instance().getDescription(name) << "\n";
+            LOGI("  %s: %s", name.c_str(), DemoRegistry::instance().getDescription(name).c_str());
         }
         return 0;
     }
@@ -50,8 +82,7 @@ int App::run(int argc, char* argv[]) {
     
     auto demo = DemoRegistry::instance().createDemo(args.demoName);
     if (!demo) {
-        std::cerr << "Demo '" << args.demoName << "' not found.\n";
-        std::cerr << "Use -l to see available demos.\n";
+        LOGE("Demo '%s' not found. Use -l to see available demos.", args.demoName.c_str());
         return 1;
     }
     
@@ -65,7 +96,7 @@ int App::run(int argc, char* argv[]) {
     if (m_validationEnabled && !outputDir.empty() && ValidationLogger::instance().hasMessages()) {
         std::string logFile = outputDir + "/validation.txt";
         if (ValidationLogger::instance().saveToFile(logFile)) {
-            std::cout << "Validation log saved to: " << logFile << "\n";
+            LOGI("Validation log saved to: %s", logFile.c_str());
         }
     }
     
@@ -75,9 +106,11 @@ int App::run(int argc, char* argv[]) {
 }
 
 bool App::init(const vk_utils::Args& args, std::unique_ptr<DemoBase>& demo) {
+#ifndef __ANDROID__
     if (!initWindow(args.width, args.height)) {
         return false;
     }
+#endif
     
     if (!initVulkan(args.validation)) {
         return false;
@@ -100,15 +133,18 @@ void App::cleanup() {
     
     m_instance.destroy();
     
+#ifndef __ANDROID__
     if (m_window) {
         glfwDestroyWindow(m_window);
         glfwTerminate();
         m_window = nullptr;
     }
+#endif
     
     m_initialized = false;
 }
 
+#ifndef __ANDROID__
 bool App::initWindow(uint32_t width, uint32_t height) {
     glfwSetErrorCallback([](int error, const char* desc) {
         std::cerr << "GLFW Error " << error << ": " << desc << std::endl;
@@ -131,30 +167,58 @@ bool App::initWindow(uint32_t width, uint32_t height) {
     
     return true;
 }
+#endif
 
 bool App::initVulkan(bool enableValidation) {
     if (!m_instance.init({}, {}, enableValidation)) {
-        std::cerr << "Failed to create Vulkan instance.\n";
+        LOGE("Failed to create Vulkan instance.");
         return false;
     }
     
+#ifndef __ANDROID__
     if (glfwCreateWindowSurface(m_instance.get(), m_window, nullptr, &m_surface) != VK_SUCCESS) {
         std::cerr << "Failed to create surface.\n";
         return false;
     }
+#endif
     
     std::vector<const char*> extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     if (!m_device.init(m_instance.get(), m_surface, extensions)) {
-        std::cerr << "Failed to create device.\n";
+        LOGE("Failed to create device.");
         return false;
     }
     
     if (!m_command.init(m_device.get(), m_device.getGraphicsQueueFamily())) {
-        std::cerr << "Failed to create command pool.\n";
+        LOGE("Failed to create command pool.");
         return false;
     }
     
+    LOGI("Vulkan initialized successfully");
     return true;
+}
+
+void App::makeDirectory(const std::string& path) {
+#ifdef _WIN32
+    _mkdir(path.c_str());
+#elif defined(__ANDROID__)
+    mkdir(path.c_str(), 0755);
+#else
+    mkdir(path.c_str(), 0755);
+#endif
+}
+
+std::string App::createOutputDirectory(const std::string& demoName, const std::string& basePath) {
+    auto now = std::time(nullptr);
+    std::tm* tm = std::localtime(&now);
+    std::ostringstream ss;
+    ss << std::put_time(tm, "%Y%m%d_%H%M%S");
+    
+    std::string dir = basePath + "/" + demoName + "_" + ss.str();
+    
+    makeDirectory(basePath);
+    makeDirectory(dir);
+    
+    return dir;
 }
 
 std::string App::setupOutputDirectory(const std::string& demoName, const vk_utils::Args& args, bool isWindowMode) {
@@ -164,13 +228,12 @@ std::string App::setupOutputDirectory(const std::string& demoName, const vk_util
         outputDir = createOutputDirectory(demoName, args.outputPath);
     } else if (m_testMode || m_updateGolden) {
         outputDir = args.outputPath + "/" + demoName;
-#ifdef _WIN32
-        _mkdir(args.outputPath.c_str());
-        _mkdir(outputDir.c_str());
-#endif
+        makeDirectory(args.outputPath);
+        makeDirectory(outputDir);
     } else {
         outputDir = createOutputDirectory(demoName, args.outputPath);
-        std::cout << "Output: " << outputDir << "\nRendering " << (args.frameCount > 0 ? args.frameCount : 1) << " frames...\n";
+        LOGI("Output: %s", outputDir.c_str());
+        LOGI("Rendering %u frames...", args.frameCount > 0 ? args.frameCount : 1);
     }
     
     return outputDir;
@@ -191,6 +254,7 @@ DemoContext App::createDemoContext(bool isWindowMode) {
     return context;
 }
 
+#ifndef __ANDROID__
 bool App::initWindowModeResources(WindowModeResources& res) {
     res.swapchain.init(m_device.get(), m_device.getPhysicalDevice(), m_surface, 800, 600, true);
     res.renderPass.init(m_device.get(), res.swapchain.getImageFormat());
@@ -337,6 +401,7 @@ bool App::renderWindowFrame(WindowModeResources& res, DemoBase* demo, size_t fra
     
     return true;
 }
+#endif
 
 bool App::renderOffscreenFrame(DemoBase* demo, const std::string& outputDir, uint32_t frameCount,
                                vk_test::TestRunner& testRunner, uint32_t& passCount, uint32_t& failCount) {
@@ -377,18 +442,19 @@ bool App::renderOffscreenFrame(DemoBase* demo, const std::string& outputDir, uin
     saveInfo.filename = filename;
     
     if (!vk_utils::saveVkImageToPNG(saveInfo)) {
-        std::cerr << "Failed to save: " << filename << "\n";
+        LOGE("Failed to save: %s", filename);
         m_command.freeCommandBuffer(cmd);
         return false;
     }
     
     if (m_updateGolden) {
         testRunner.updateGolden(demo->getName(), filename, frameCount);
+        LOGI("Frame %u: Golden updated", frameCount);
     } else if (m_testMode) {
         vk_test::TestResult result = testRunner.runTest(demo->getName(),
             [&filename]() { return filename; }, frameCount, m_testThreshold);
         
-        std::cout << "[" << result.testName << "] " << result.message << "\n";
+        LOGI("[%s] %s", result.testName.c_str(), result.message.c_str());
         
         if (result.passed) {
             passCount++;
@@ -396,7 +462,7 @@ bool App::renderOffscreenFrame(DemoBase* demo, const std::string& outputDir, uin
             failCount++;
         }
     } else {
-        std::cout << "Saved: " << filename << "\n";
+        LOGI("Saved: %s", filename);
     }
     
     m_command.freeCommandBuffer(cmd);
@@ -405,15 +471,19 @@ bool App::renderOffscreenFrame(DemoBase* demo, const std::string& outputDir, uin
 
 void App::printTestSummary(uint32_t passCount, uint32_t failCount, uint32_t frameCount, bool isTestMode) {
     if (isTestMode) {
-        std::cout << "\n=== Test Summary ===\n";
-        std::cout << "Passed: " << passCount << "/" << frameCount << "\n";
-        std::cout << "Failed: " << failCount << "/" << frameCount << "\n";
+        LOGI("=== Test Summary ===");
+        LOGI("Passed: %u/%u", passCount, frameCount);
+        LOGI("Failed: %u/%u", failCount, frameCount);
     }
 }
 
 std::string App::runDemo(std::unique_ptr<DemoBase>& demo, const vk_utils::Args& args, int& exitCode) {
     exitCode = 0;
+#ifdef __ANDROID__
+    bool isWindowMode = false;
+#else
     bool isWindowMode = !args.offscreen;
+#endif
     uint32_t maxFrames = args.frameCount;
     
     std::string outputDir = setupOutputDirectory(demo->getName(), args, isWindowMode);
@@ -421,15 +491,17 @@ std::string App::runDemo(std::unique_ptr<DemoBase>& demo, const vk_utils::Args& 
     DemoContext context = createDemoContext(isWindowMode);
     
     if (!demo->init(context)) {
-        std::cerr << "Failed to initialize demo.\n";
+        LOGE("Failed to initialize demo.");
         exitCode = 1;
         return outputDir;
     }
     
+#ifndef __ANDROID__
     WindowModeResources windowRes;
     if (isWindowMode) {
         initWindowModeResources(windowRes);
     }
+#endif
     
     vk_test::TestRunner testRunner(m_goldenPath, outputDir);
     uint32_t passCount = 0;
@@ -438,6 +510,7 @@ std::string App::runDemo(std::unique_ptr<DemoBase>& demo, const vk_utils::Args& 
     size_t currentFrame = 0;
     
     while (true) {
+#ifndef __ANDROID__
         if (isWindowMode) {
             glfwPollEvents();
             if (glfwWindowShouldClose(m_window)) break;
@@ -446,7 +519,9 @@ std::string App::runDemo(std::unique_ptr<DemoBase>& demo, const vk_utils::Args& 
             size_t frameIndex = currentFrame % 2;
             renderWindowFrame(windowRes, demo.get(), frameIndex);
             currentFrame++;
-        } else {
+        } else
+#endif
+        {
             uint32_t targetFrames = maxFrames > 0 ? maxFrames : 1;
             if (frameCount >= targetFrames) break;
             
@@ -459,45 +534,30 @@ std::string App::runDemo(std::unique_ptr<DemoBase>& demo, const vk_utils::Args& 
     
     m_device.waitIdle();
     
+#ifndef __ANDROID__
     if (isWindowMode) {
         cleanupWindowModeResources(windowRes);
     }
+#endif
     
     if (!isWindowMode) {
         if (m_testMode) {
             printTestSummary(passCount, failCount, frameCount, true);
             exitCode = (failCount > 0) ? 1 : 0;
         } else if (!m_updateGolden) {
-            std::cout << "Done. " << frameCount << " frames saved to " << outputDir << "\n";
+            LOGI("Done. %u frames saved to %s", frameCount, outputDir.c_str());
         }
     }
     
     return outputDir;
 }
 
-std::string App::createOutputDirectory(const std::string& demoName, const std::string& basePath) {
-    auto now = std::time(nullptr);
-    std::tm* tm = std::localtime(&now);
-    std::ostringstream ss;
-    ss << std::put_time(tm, "%Y%m%d_%H%M%S");
-    
-    std::string dir = basePath + "/" + demoName + "_" + ss.str();
-    
-#ifdef _WIN32
-    _mkdir(basePath.c_str());
-    _mkdir(dir.c_str());
-#else
-    mkdir(basePath.c_str(), 0755);
-    mkdir(dir.c_str(), 0755);
-#endif
-    
-    return dir;
-}
-
 int App::runAllDemosTests(const vk_utils::Args& args) {
+#ifndef __ANDROID__
     if (!initWindow(args.width, args.height)) {
         return 1;
     }
+#endif
     
     if (!initVulkan(args.validation)) {
         return 1;
@@ -507,7 +567,7 @@ int App::runAllDemosTests(const vk_utils::Args& args) {
     
     auto demoNames = DemoRegistry::instance().getDemoNames();
     if (demoNames.empty()) {
-        std::cerr << "No demos available.\n";
+        LOGE("No demos available.");
         return 1;
     }
     
@@ -515,34 +575,30 @@ int App::runAllDemosTests(const vk_utils::Args& args) {
     uint32_t totalFail = 0;
     std::vector<std::string> failedDemos;
     
-    std::cout << "\n=== Running all demo tests ===\n";
-    std::cout << "Total demos: " << demoNames.size() << "\n\n";
+    LOGI("=== Running all demo tests ===");
+    LOGI("Total demos: %zu", demoNames.size());
     
-#ifdef _WIN32
-    _mkdir(args.outputPath.c_str());
-    _mkdir(args.goldenPath.c_str());
-#endif
+    makeDirectory(args.outputPath);
+    makeDirectory(args.goldenPath);
     
     for (const auto& demoName : demoNames) {
-        std::cout << "--- Testing demo: " << demoName << " ---\n";
+        LOGI("--- Testing demo: %s ---", demoName.c_str());
         
         auto demo = DemoRegistry::instance().createDemo(demoName);
         if (!demo) {
-            std::cerr << "Failed to create demo: " << demoName << "\n";
+            LOGE("Failed to create demo: %s", demoName.c_str());
             totalFail++;
             failedDemos.push_back(demoName);
             continue;
         }
         
         std::string outputDir = args.outputPath + "/" + demoName;
-#ifdef _WIN32
-        _mkdir(outputDir.c_str());
-#endif
+        makeDirectory(outputDir);
         
         DemoContext context = createDemoContext(false);
         
         if (!demo->init(context)) {
-            std::cerr << "Failed to initialize demo: " << demoName << "\n";
+            LOGE("Failed to initialize demo: %s", demoName.c_str());
             totalFail++;
             failedDemos.push_back(demoName);
             continue;
@@ -593,18 +649,18 @@ int App::runAllDemosTests(const vk_utils::Args& args) {
             saveInfo.filename = filename;
             
             if (!vk_utils::saveVkImageToPNG(saveInfo)) {
-                std::cerr << "Failed to save: " << filename << "\n";
+                LOGE("Failed to save: %s", filename);
                 continue;
             }
             
             if (args.updateGolden) {
                 testRunner.updateGolden(demoName, filename, i);
-                std::cout << "  Frame " << i << ": Golden updated\n";
+                LOGI("  Frame %u: Golden updated", i);
             } else {
                 vk_test::TestResult result = testRunner.runTest(demoName,
                     [&filename]() { return filename; }, i, args.testThreshold);
                 
-                std::cout << "  Frame " << i << ": " << result.message << "\n";
+                LOGI("  Frame %u: %s", i, result.message.c_str());
                 
                 if (result.passed) {
                     passCount++;
@@ -618,27 +674,27 @@ int App::runAllDemosTests(const vk_utils::Args& args) {
         
         if (!args.updateGolden) {
             if (failCount == 0) {
-                std::cout << "  [PASS] " << demoName << ": " << passCount << "/" << frames << " frames passed\n\n";
+                LOGI("  [PASS] %s: %u/%u frames passed", demoName.c_str(), passCount, frames);
                 totalPass++;
             } else {
-                std::cout << "  [FAIL] " << demoName << ": " << passCount << "/" << frames << " frames passed\n\n";
+                LOGI("  [FAIL] %s: %u/%u frames passed", demoName.c_str(), passCount, frames);
                 totalFail++;
                 failedDemos.push_back(demoName);
             }
         }
     }
     
-    std::cout << "\n=== Test Summary ===\n";
+    LOGI("=== Test Summary ===");
     if (args.updateGolden) {
-        std::cout << "Golden images updated for all demos.\n";
+        LOGI("Golden images updated for all demos.");
     } else {
-        std::cout << "Passed: " << totalPass << "/" << demoNames.size() << " demos\n";
-        std::cout << "Failed: " << totalFail << "/" << demoNames.size() << " demos\n";
+        LOGI("Passed: %u/%zu demos", totalPass, demoNames.size());
+        LOGI("Failed: %u/%zu demos", totalFail, demoNames.size());
         
         if (!failedDemos.empty()) {
-            std::cout << "\nFailed demos:\n";
+            LOGI("Failed demos:");
             for (const auto& name : failedDemos) {
-                std::cout << "  - " << name << "\n";
+                LOGI("  - %s", name.c_str());
             }
         }
     }

@@ -115,7 +115,7 @@ add_subdirectory(../src/demo/demos demos)
 if(BUILD_ANDROID_CLI)
     add_executable(vulkan_demo_cli
         ../src/main.cpp
-        ../src/app_android.cpp
+        ../src/app.cpp
     )
     target_link_libraries(vulkan_demo_cli PRIVATE vulkan_core vulkan_demos log)
     set_target_properties(vulkan_demo_cli PROPERTIES
