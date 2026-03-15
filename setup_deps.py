@@ -175,6 +175,48 @@ def setup_ktx():
     print("  Done.")
 
 
+def setup_jdk():
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    jdk_dir = os.path.join(project_dir, "jdk", "jdk-17.0.2")
+    java_exe = os.path.join(jdk_dir, "bin", "java.exe")
+    
+    if os.path.exists(java_exe):
+        print("JDK 17 already exists, skipping...")
+        return
+    
+    if os.path.exists(os.path.dirname(jdk_dir)):
+        print("Removing incomplete JDK directory...")
+        shutil.rmtree(os.path.dirname(jdk_dir), ignore_errors=True)
+    
+    print("Setting up JDK 17...")
+    os.makedirs(os.path.dirname(jdk_dir), exist_ok=True)
+    
+    url = "https://cdn.azul.com/zulu/bin/zulu17.54.21-ca-jdk17.0.13-win_x64.zip"
+    temp_path = os.path.join(os.path.dirname(jdk_dir), "temp.zip")
+    
+    download_with_progress(url, temp_path)
+    
+    print("  Extracting JDK...")
+    with zipfile.ZipFile(temp_path, 'r') as zip_ref:
+        for member in zip_ref.namelist():
+            parts = member.split('/')
+            if len(parts) <= 1:
+                continue
+            new_path = '/'.join(parts[1:])
+            if not new_path:
+                continue
+            target = os.path.join(jdk_dir, new_path)
+            if member.endswith('/'):
+                os.makedirs(target, exist_ok=True)
+            else:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with zip_ref.open(member) as source, open(target, 'wb') as f:
+                    f.write(source.read())
+    
+    os.remove(temp_path)
+    print("  Done.")
+
+
 def main():
     print("=" * 50)
     print("Setting up third-party dependencies")
@@ -186,6 +228,7 @@ def main():
     setup_tinygltf()
     setup_stb()
     setup_ktx()
+    setup_jdk()
     
     print("=" * 50)
     print("All dependencies installed successfully!")

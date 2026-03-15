@@ -57,6 +57,7 @@ xcopy /E /Y /I "%PROJECT_DIR%golden" "%APK_DIR%\app\src\main\assets\golden" >nul
 echo.
 echo [4/5] Building APK with Gradle...
 cd /d "%APK_DIR%"
+set ANDROID_HOME=%SDK_PATH%
 set JAVA_HOME=%JAVA_HOME%
 call "%GRADLE_PATH%" assembleRelease --no-daemon
 if %errorlevel% neq 0 (
@@ -78,8 +79,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-"%BUILD_TOOLS%/apksigner.bat" sign --ks release-key.jks --ks-pass pass:android --key-pass pass:android --out app-release.apk app-aligned.apk 2>&1
-if %errorlevel% neq 0 (
+call "%BUILD_TOOLS%/apksigner.bat" sign --ks release-key.jks --ks-pass pass:android --key-pass pass:android --out app-release.apk app-aligned.apk 2>&1
+set SIGN_RESULT=%errorlevel%
+if %SIGN_RESULT% neq 0 (
     echo [ERROR] APK signing failed!
     cd /d "%PROJECT_DIR%"
     pause

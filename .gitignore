@@ -71,6 +71,7 @@ CTestTestfile.cmake
 _deps/
 *.cmake
 !CMakeLists.txt
+!GenerateMappings.cmake
 
 # Output
 output/
