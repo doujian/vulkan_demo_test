@@ -2,10 +2,27 @@
 
 此文件存储编译和开发环境配置，供 AI 助手参考。
 
+## 构建脚本
+
+项目提供便捷的构建脚本：
+
+```
+build.bat           - Windows 版本构建（自动检查依赖）
+build_android_cli.bat - Android CLI 版本构建
+build_android_apk.bat - Android APK 版本构建
+```
+
 ## 检查依赖
 ```
 每次编译前，都检查依赖全不全。如果不全只允许调用setup_deps.py下载依赖，依赖没有满足前，不要尝试编译项目
 ```
+
+setup_deps.py 会自动下载：
+- glm
+- tinygltf
+- stb
+- ktx
+- JDK 17 (用于 Android APK 构建)
 
 ## 单元测试
 ```
@@ -133,6 +150,14 @@ adb install android/apk/app-release.apk
 - 使用 4 空格缩进
 - 命名空间: vk_demo, vk_core, vk_test, vk_utils, vk_offscreen
 - 可能有错的异常分支都加上打印，用完不要删保留着。
+
+## 平台代码
+
+`src/app.cpp` 使用 `#ifdef __ANDROID__` 宏隔离平台差异：
+- Windows: 使用 GLFW 创建窗口，支持窗口模式和离屏模式
+- Android: 仅支持离屏模式，使用 android log 输出
+
+不要创建 `app_android.cpp`，平台差异在 `app.cpp` 中用宏隔离。
 
 ## 测试命令
 

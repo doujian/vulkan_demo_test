@@ -54,9 +54,25 @@ vulkan_demo_test/
 - Vulkan SDK 1.2+
 - GLFW (自动下载)
 
-### 编译步骤 (Windows)
+### 快速编译
 
 ```bash
+# 运行构建脚本（自动检查并下载依赖）
+build.bat
+```
+
+构建脚本会自动：
+1. 检查并下载缺失的依赖（glm、tinygltf、stb、ktx、JDK 17）
+2. 配置 CMake
+3. 编译 Release 版本
+4. 运行测试
+
+### 手动编译
+
+```bash
+# 先下载依赖
+python setup_deps.py
+
 # 配置
 cmake -B build -G "Visual Studio 18 2026" -A x64
 
@@ -81,6 +97,23 @@ cmake --build build --config Release
 - Ninja 构建工具
 - Android SDK (APK 版本需要)
 - Gradle 8.0+ (APK 版本需要)
+- JDK 17 (APK 版本需要，项目自带)
+
+### 快速编译
+
+```bash
+# Android CLI 版本
+build_android_cli.bat
+
+# Android APK 版本
+build_android_apk.bat
+```
+
+构建脚本会自动：
+1. 检查并下载缺失的依赖
+2. 编译 native 库
+3. 复制资源和 .so 文件
+4. 构建 APK 并签名（APK 版本）
 
 ### Android CLI 版本 (离屏渲染测试)
 
